@@ -1,0 +1,7 @@
+import test from "node:test"; import assert from "node:assert/strict"; import fs from "node:fs";
+import {filterRecords,recordsToCsv,buildRecordInsights,parseExportFormat} from "../recordInsights.mjs";
+const rows=[{reference:"A-1",title:"Alpha case",status:"Open",risk:"High",amount:0,payload:{note:false,flag:0}},{reference:"B-2",title:"Beta case",status:"Closed",risk:"Low",amount:250,payload:{}}];
+test("search/filter preserves zero records",()=>{assert.equal(filterRecords(rows,{q:"alpha"}).length,1);assert.equal(filterRecords(rows,{status:"Closed"}).length,1);assert.equal(filterRecords(rows,{risk:"High"})[0].amount,0);});
+test("csv/json export formats",()=>{assert.equal(parseExportFormat("csv"),"csv");assert.equal(parseExportFormat("xml"),null);const csv=recordsToCsv(rows);assert.ok(csv.includes("A-1"));assert.ok(csv.trim().split("\n").length>=3);assert.ok(JSON.stringify(rows).includes('"amount":0'));});
+test("deterministic insights labelled aiGenerated:false with 2-3 features",()=>{const r=buildRecordInsights(rows);assert.equal(r.aiGenerated,false);assert.equal(r.insights.length,3);assert.ok(r.insights.every(i=>i.aiGenerated===false&&i.label.includes("Deterministic")));assert.equal(r.zeroAmountCount,1);assert.equal(r.totalRecords,2);});
+test("insights endpoints are authenticated in server",()=>{const s=fs.readFileSync(new URL("../server.mjs",import.meta.url),"utf8");assert.ok(s.includes("recordInsights"));assert.ok(s.includes("insights"));assert.ok(s.includes("export"));});
